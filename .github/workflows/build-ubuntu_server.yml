@@ -15,7 +15,7 @@ jobs:
   build:
     uses: ./.github/workflows/build-image.yml
     with:
-      image_name: andlin-ubuntu
+      image_name: serverbox-ubuntu
       upstream_image: ubuntu:latest
       dockerfile: Dockerfile.ubuntu_server
       platforms: linux/amd64,linux/arm64,linux/arm/v7

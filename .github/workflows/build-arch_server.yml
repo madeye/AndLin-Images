@@ -15,7 +15,7 @@ jobs:
   build:
     uses: ./.github/workflows/build-image.yml
     with:
-      image_name: andlin-arch
+      image_name: serverbox-arch
       # Track the ARM image; archlinux:latest (amd64) is also a base but single-arch
       upstream_image: menci/archlinuxarm:latest
       dockerfile: Dockerfile.arch_server

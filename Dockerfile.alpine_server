@@ -1,6 +1,6 @@
-# Headless "server" variant of Dockerfile.alpine for AndLin.
+# Headless "server" variant of Dockerfile.alpine for ServerBox.
 #
-# Everything needed to run a Linux distro under UserLAnd/AndLin (proot; Alpine
+# Everything needed to run a Linux distro under UserLAnd/ServerBox (proot; Alpine
 # has no systemd so it is never used with the AVF VM backend, same as
 # upstream) is kept; the X11/VNC/desktop stack is dropped, since server use
 # only needs a shell over dropbear SSH. A small server-oriented package
@@ -31,7 +31,7 @@ RUN mkdir /build \
 # Stage 2: the real rootfs — no build toolchain, no X/VNC/desktop stack
 FROM alpine:latest
 
-LABEL org.andlin.variant=server
+LABEL org.serverbox.variant=server
 
 RUN printf 'https://dl-cdn.alpinelinux.org/alpine/latest-stable/main\nhttps://dl-cdn.alpinelinux.org/alpine/latest-stable/community\n' \
     > /etc/apk/repositories && \
@@ -49,7 +49,7 @@ RUN printf 'auth sufficient pam_shells.so\n' > /etc/pam.d/chsh
 ENV LANG=C.UTF-8
 
 RUN printf '#!/bin/sh\nunset LD_PRELOAD\nunset LD_LIBRARY_PATH\nexport LIBGL_ALWAYS_SOFTWARE=1\n' \
-    > /etc/profile.d/userland.sh && chmod +x /etc/profile.d/userland.sh
+    > /etc/profile.d/serverbox.sh && chmod +x /etc/profile.d/serverbox.sh
 
 COPY --from=builder /build/busybox              /support/busybox
 COPY --from=builder /build/libdisableselinux.so /support/libdisableselinux.so

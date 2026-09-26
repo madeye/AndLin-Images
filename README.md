@@ -8,21 +8,21 @@ workflows and desktop-image assets in this repository goes to
 CypherpunkArmory — this fork only adds a new set of images on top of that
 work.
 
-This fork exists to build images for **AndLin**, a headless-server-focused
-distribution of UserLAnd. AndLin keeps the desktop (`userland-*`) images
-CypherpunkArmory already publishes, and adds a parallel set of `andlin-*`
+This fork exists to build images for **ServerBox**, a headless-server-focused
+distribution of UserLAnd. ServerBox keeps the desktop (`userland-*`) images
+CypherpunkArmory already publishes, and adds a parallel set of `serverbox-*`
 "server" images that drop the X11/VNC/desktop stack entirely, since server
 use of a Linux distro on Android doesn't need it — a shell over SSH does.
 
 ## Server images
 
-| Distro | Dockerfile                 | Image                          | Workflow                      |
-|--------|-----------------------------|---------------------------------|--------------------------------|
-| Ubuntu | `Dockerfile.ubuntu_server`  | `ghcr.io/madeye/andlin-ubuntu`  | `build-ubuntu_server.yml`      |
-| Debian | `Dockerfile.debian_server`  | `ghcr.io/madeye/andlin-debian`  | `build-debian_server.yml`      |
-| Kali   | `Dockerfile.kali_server`    | `ghcr.io/madeye/andlin-kali`    | `build-kali_server.yml`        |
-| Arch   | `Dockerfile.arch_server`    | `ghcr.io/madeye/andlin-arch`    | `build-arch_server.yml`        |
-| Alpine | `Dockerfile.alpine_server`  | `ghcr.io/madeye/andlin-alpine`  | `build-alpine_server.yml`      |
+| Distro | Dockerfile                 | Image                             | Workflow                  |
+|--------|----------------------------|-----------------------------------|---------------------------|
+| Ubuntu | `Dockerfile.ubuntu_server` | `ghcr.io/madeye/serverbox-ubuntu` | `build-ubuntu_server.yml` |
+| Debian | `Dockerfile.debian_server` | `ghcr.io/madeye/serverbox-debian` | `build-debian_server.yml` |
+| Kali   | `Dockerfile.kali_server`   | `ghcr.io/madeye/serverbox-kali`   | `build-kali_server.yml`   |
+| Arch   | `Dockerfile.arch_server`   | `ghcr.io/madeye/serverbox-arch`   | `build-arch_server.yml`   |
+| Alpine | `Dockerfile.alpine_server` | `ghcr.io/madeye/serverbox-alpine` | `build-alpine_server.yml` |
 
 Each is built by the same reusable `build-image.yml` workflow the desktop
 images use, tagged `:latest` and `:YYYYMMDD`, and labelled with the upstream
@@ -38,7 +38,7 @@ Kept, unchanged from the desktop variant:
   Kali) — this is a hard requirement of UserLAnd's AVF VM backend, not a
   desktop convenience; see the comment in each Dockerfile. Alpine still has
   no systemd, matching upstream `Dockerfile.alpine`. Arch keeps systemd too.
-- sudo, dropbear (AndLin's SSH server, started via
+- sudo, dropbear (ServerBox's SSH server, started via
   `/support/startSSHServer.sh` on port 2022), curl, wget.
 - The builder stage that produces `/support/busybox` and
   `/support/libdisableselinux.so`, and the `assets/common/` copy into
@@ -77,9 +77,9 @@ Added — a small, generally useful server baseline:
 - `cron` (Ubuntu/Debian/Kali: `cron`; Arch: `cronie`). Not added for Alpine —
   `busybox-suid`, already required, already provides `crond` as a built-in
   applet.
-- The OCI label `org.andlin.variant=server` on every server image, so
+- The OCI label `org.serverbox.variant=server` on every server image, so
   tooling can tell them apart from the desktop images at a glance
-  (`docker inspect --format '{{ index .Config.Labels "org.andlin.variant" }}'`).
+  (`docker inspect --format '{{ index .Config.Labels "org.serverbox.variant" }}'`).
 
 All apt/pacman/apk installs use `--no-install-recommends` (apt) /
 `--overwrite` with cache purging (pacman) / `--no-cache` (apk) to keep the

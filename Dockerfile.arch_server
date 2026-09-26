@@ -1,6 +1,6 @@
-# Headless "server" variant of Dockerfile.arch for AndLin.
+# Headless "server" variant of Dockerfile.arch for ServerBox.
 #
-# Everything needed to run a Linux distro under UserLAnd/AndLin (proot or the
+# Everything needed to run a Linux distro under UserLAnd/ServerBox (proot or the
 # AVF VM backend) is kept; the X11/VNC/desktop stack is dropped, since server
 # use only needs a shell over dropbear SSH. A small server-oriented package
 # baseline is added instead. See README.md for the full rationale.
@@ -36,7 +36,7 @@ RUN mkdir /build \
 # Stage 2: the real rootfs — no build toolchain, no X/VNC/desktop stack
 FROM menci/archlinuxarm:latest
 
-LABEL org.andlin.variant=server
+LABEL org.serverbox.variant=server
 
 RUN sed -i 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf && \
     sed -i '/^SigLevel[[:space:]]/c\SigLevel = Never' /etc/pacman.conf && \
@@ -71,7 +71,7 @@ RUN yes | pacman -Scc
 ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
 
 RUN printf '#!/bin/sh\nunset LD_PRELOAD\nunset LD_LIBRARY_PATH\nexport LIBGL_ALWAYS_SOFTWARE=1\n' \
-    > /etc/profile.d/userland.sh && chmod +x /etc/profile.d/userland.sh
+    > /etc/profile.d/serverbox.sh && chmod +x /etc/profile.d/serverbox.sh
 
 COPY --from=builder /build/busybox              /support/busybox
 COPY --from=builder /build/libdisableselinux.so /support/libdisableselinux.so

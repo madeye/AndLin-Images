@@ -15,7 +15,7 @@ jobs:
   build:
     uses: ./.github/workflows/build-image.yml
     with:
-      image_name: andlin-kali
+      image_name: serverbox-kali
       upstream_image: kalilinux/kali-rolling:latest
       dockerfile: Dockerfile.kali_server
       platforms: linux/amd64,linux/arm64

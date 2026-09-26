@@ -1,6 +1,6 @@
-# Headless "server" variant of Dockerfile.kali for AndLin.
+# Headless "server" variant of Dockerfile.kali for ServerBox.
 #
-# Everything needed to run a Linux distro under UserLAnd/AndLin (proot or the
+# Everything needed to run a Linux distro under UserLAnd/ServerBox (proot or the
 # AVF VM backend) is kept; the X11/VNC/desktop stack is dropped, since server
 # use only needs a shell over dropbear SSH. A small server-oriented package
 # baseline is added instead. See README.md for the full rationale.
@@ -21,12 +21,12 @@ RUN mkdir /build \
 # Stage 2: the real rootfs — no build toolchain, no X/VNC/desktop stack
 FROM kalilinux/kali-rolling:latest
 
-LABEL org.andlin.variant=server
+LABEL org.serverbox.variant=server
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN printf '#!/bin/sh\nunset LD_PRELOAD\nunset LD_LIBRARY_PATH\nexport LIBGL_ALWAYS_SOFTWARE=1\n' \
-    > /etc/profile.d/userland.sh && chmod +x /etc/profile.d/userland.sh
+    > /etc/profile.d/serverbox.sh && chmod +x /etc/profile.d/serverbox.sh
 
 # systemd + systemd-sysv are a hard requirement of the AVF backend, not a
 # convenience: avf-init pivot_roots into /lib/systemd/systemd and runs it as
