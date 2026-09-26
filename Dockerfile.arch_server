@@ -1,0 +1,85 @@
+# Headless "server" variant of Dockerfile.arch for ServerBox.
+#
+# Everything needed to run a Linux distro under UserLAnd/ServerBox (proot or the
+# AVF VM backend) is kept; the X11/VNC/desktop stack is dropped, since server
+# use only needs a shell over dropbear SSH. A small server-oriented package
+# baseline is added instead. See README.md for the full rationale.
+#
+# Note: assets/arch/startVNCServerStep2.sh is intentionally NOT copied in --
+# unlike the desktop variant, which layers assets/arch/ on top of
+# assets/common/. There's also no xsessions/twm.desktop entry, since there's
+# no X session to launch.
+
+# Stage 1: build arch-specific artifacts that must not ship with their build deps
+# menci/archlinuxarm provides amd64 + arm64 + arm/v7 in a single multi-arch image.
+FROM menci/archlinuxarm:latest AS builder
+
+# pacman 7.0+ sandbox requires an 'alpm' user that doesn't exist in Docker.
+# SigLevel=Never avoids keyring entropy/init issues under QEMU in CI.
+# --overwrite '*' handles file conflicts from package splits (e.g. gcc-libs → libgcc+libstdc++).
+RUN sed -i 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf && \
+    sed -i '/^SigLevel[[:space:]]/c\SigLevel = Never' /etc/pacman.conf && \
+    sed -i '/^DisableSandbox/a NoExtract = etc/resolv.conf etc/hosts' /etc/pacman.conf && \
+    sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
+
+RUN pacman -Syu --noconfirm --overwrite '*'
+
+RUN pacman -S --noconfirm --needed --overwrite '*' glibc base-devel linux-api-headers busybox
+
+RUN yes | pacman -Scc
+
+COPY input/disableselinux.c /tmp/disableselinux.c
+RUN mkdir /build \
+    && gcc -shared -fPIC /tmp/disableselinux.c -o /build/libdisableselinux.so \
+    && cp /usr/bin/busybox /build/busybox
+
+# Stage 2: the real rootfs — no build toolchain, no X/VNC/desktop stack
+FROM menci/archlinuxarm:latest
+
+LABEL org.serverbox.variant=server
+
+RUN sed -i 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf && \
+    sed -i '/^SigLevel[[:space:]]/c\SigLevel = Never' /etc/pacman.conf && \
+    sed -i '/^DisableSandbox/a NoExtract = etc/resolv.conf etc/hosts' /etc/pacman.conf && \
+    sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
+
+RUN pacman -Syu --noconfirm --overwrite '*'
+
+# systemd is a hard requirement of the AVF backend, not a convenience: avf-init
+# pivot_roots into /lib/systemd/systemd and runs it as PID 1 when present, which
+# is what makes `systemctl` -- and therefore Docker, podman and any packaged
+# .service unit -- work inside the VM. Without it avf-init falls back to a
+# chroot in which the distro's own init never runs. Requested explicitly even
+# though the base image ships systemd as part of its base group: that is
+# incidental, and an upstream change could silently regress it.
+#
+# No X11/VNC/desktop packages here (x11vnc, xterm, xorg-twm, xorg-server-xvfb,
+# xorg-xsetroot, expect) -- this is a headless server image. In their place: a
+# small, generally-useful server baseline.
+RUN pacman -S --noconfirm --needed --overwrite '*' \
+      systemd \
+      sudo dropbear gzip \
+      ca-certificates wget curl \
+      openssh less nano procps-ng iproute2 iputils \
+      tzdata cronie
+
+RUN sed -i '/^#en_US.UTF-8 UTF-8/s/^#//' /etc/locale.gen \
+    && locale-gen
+
+RUN yes | pacman -Scc
+
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
+
+RUN printf '#!/bin/sh\nunset LD_PRELOAD\nunset LD_LIBRARY_PATH\nexport LIBGL_ALWAYS_SOFTWARE=1\n' \
+    > /etc/profile.d/serverbox.sh && chmod +x /etc/profile.d/serverbox.sh
+
+COPY --from=builder /build/busybox              /support/busybox
+COPY --from=builder /build/libdisableselinux.so /support/libdisableselinux.so
+COPY assets/common/ /support/
+
+RUN chmod a+x /support/busybox \
+              /support/libdisableselinux.so \
+              /support/nosudo \
+              /support/*.sh \
+    && chmod a-w /support/* \
+    && chmod a-w /support

@@ -1,0 +1,22 @@
+name: Build Kali Server
+
+on:
+  schedule:
+    - cron: '0 13 * * 1'  # every Monday 13:00 UTC (staggered from desktop images)
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - Dockerfile.kali_server
+      - 'input/**'
+      - 'assets/common/**'
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-image.yml
+    with:
+      image_name: serverbox-kali
+      upstream_image: kalilinux/kali-rolling:latest
+      dockerfile: Dockerfile.kali_server
+      platforms: linux/amd64,linux/arm64
+    secrets: inherit

@@ -1,0 +1,23 @@
+name: Build Alpine Server
+
+on:
+  schedule:
+    - cron: '0 15 * * 1'  # every Monday 15:00 UTC (staggered from desktop images)
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - Dockerfile.alpine_server
+      - 'input/**'
+      - 'assets/common/**'
+      - 'assets/alpine/addNonRootUser.sh'
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-image.yml
+    with:
+      image_name: serverbox-alpine
+      upstream_image: alpine:latest
+      dockerfile: Dockerfile.alpine_server
+      platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/386
+    secrets: inherit

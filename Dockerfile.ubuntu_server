@@ -1,0 +1,79 @@
+# Headless "server" variant of Dockerfile.ubuntu for ServerBox.
+#
+# Everything needed to run a Linux distro under UserLAnd/ServerBox (proot or the
+# AVF VM backend) is kept; the X11/VNC/desktop stack is dropped, since server
+# use only needs a shell over dropbear SSH. A small server-oriented package
+# baseline is added instead. See README.md for the full rationale.
+
+# Stage 1: build the arch-specific artifacts that must not ship with their build deps
+FROM ubuntu:latest AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential \
+      busybox-static \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY input/disableselinux.c /tmp/disableselinux.c
+RUN mkdir /build \
+    && gcc -shared -fPIC /tmp/disableselinux.c -o /build/libdisableselinux.so \
+    && cp /bin/busybox /build/busybox
+
+# Stage 2: the real rootfs — no build toolchain, no X/VNC/desktop stack
+FROM ubuntu:latest
+
+LABEL org.serverbox.variant=server
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN printf '#!/bin/sh\nunset LD_PRELOAD\nunset LD_LIBRARY_PATH\nexport LIBGL_ALWAYS_SOFTWARE=1\n' \
+    > /etc/profile.d/serverbox.sh && chmod +x /etc/profile.d/serverbox.sh
+
+# systemd + systemd-sysv are a hard requirement of the AVF backend, not a
+# convenience: avf-init pivot_roots into /lib/systemd/systemd and runs it as
+# PID 1 when present, which is what makes `systemctl` -- and therefore Docker,
+# podman and any packaged .service unit -- work inside the VM. Without them
+# avf-init falls back to a chroot in which the distro's own init never runs and
+# systemctl reports "System has not been booted with systemd as init system".
+# Requested explicitly rather than left to chance: debian shipped systemd *unit
+# files* but not the binary, and ubuntu/kali only got it as an incidental
+# transitive dep -- either could silently regress and break init for every VM
+# session. systemd-sysv provides the /sbin/init -> systemd link avf-init execs.
+#
+# No X11/VNC/desktop packages here (tightvncserver, xterm, xfonts-base, twm,
+# libgl1, libglx-mesa0, pulseaudio, expect) -- this is a headless server image.
+# In their place: a small, generally-useful server baseline.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      systemd \
+      systemd-sysv \
+      sudo \
+      dropbear \
+      ca-certificates \
+      wget \
+      curl \
+      openssh-client \
+      less \
+      nano \
+      procps \
+      iproute2 \
+      iputils-ping \
+      locales \
+      tzdata \
+      cron \
+    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
+
+RUN sed -i 's/force_color_prompt=/#force_color_prompt=/g' /etc/skel/.bashrc
+
+COPY --from=builder /build/busybox              /support/busybox
+COPY --from=builder /build/libdisableselinux.so /support/libdisableselinux.so
+COPY assets/common/ /support/
+
+RUN chmod a+x /support/busybox \
+              /support/libdisableselinux.so \
+              /support/nosudo \
+              /support/*.sh \
+    && chmod a-w /support/* \
+    && chmod a-w /support
