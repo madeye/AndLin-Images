@@ -1,3 +1,7 @@
+# ServerBox's Debian image: a headless Linux server for proot or the AVF VM
+# backend on Android. It carries what ServerBox needs to run the distro,
+# dropbear for SSH, and a small server-oriented package baseline. See README.md.
+
 # Stage 1: build the arch-specific artifacts that must not ship with their build deps
 FROM debian:latest AS builder
 
@@ -11,11 +15,15 @@ RUN mkdir /build \
     && gcc -shared -fPIC /tmp/disableselinux.c -o /build/libdisableselinux.so \
     && cp /bin/busybox /build/busybox
 
-# Stage 2: the real rootfs — no build toolchain
+# Stage 2: the real rootfs — no build toolchain, no X/VNC/desktop stack
 FROM debian:latest
 
+LABEL org.serverbox.variant=server
+
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN printf '#!/bin/sh\nunset LD_PRELOAD\nunset LD_LIBRARY_PATH\nexport LIBGL_ALWAYS_SOFTWARE=1\n' \
-    > /etc/profile.d/userland.sh && chmod +x /etc/profile.d/userland.sh
+    > /etc/profile.d/serverbox.sh && chmod +x /etc/profile.d/serverbox.sh
 
 # systemd + systemd-sysv are a hard requirement of the AVF backend, not a
 # convenience: avf-init pivot_roots into /lib/systemd/systemd and runs it as
@@ -27,27 +35,36 @@ RUN printf '#!/bin/sh\nunset LD_PRELOAD\nunset LD_LIBRARY_PATH\nexport LIBGL_ALW
 # files* but not the binary, and ubuntu/kali only got it as an incidental
 # transitive dep -- either could silently regress and break init for every VM
 # session. systemd-sysv provides the /sbin/init -> systemd link avf-init execs.
+#
+# No X11/VNC/desktop packages here (tightvncserver, xterm, xfonts-base, twm,
+# libgl1, libglx-mesa0, pulseaudio, expect) -- this is a headless server image.
+# In their place: a small, generally-useful server baseline.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       systemd \
       systemd-sysv \
       sudo \
       dropbear \
-      libgl1 \
-      libglx-mesa0 \
-      tightvncserver \
-      xterm \
-      xfonts-base \
-      twm \
-      expect \
+      ca-certificates \
       wget \
       curl \
-      pulseaudio \
+      openssh-client \
+      less \
+      nano \
+      procps \
+      iproute2 \
+      iputils-ping \
+      locales \
+      tzdata \
+      cron \
+    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
 
 COPY --from=builder /build/busybox              /support/busybox
 COPY --from=builder /build/libdisableselinux.so /support/libdisableselinux.so
 COPY assets/common/ /support/
-COPY assets/debian/ /support/
 
 RUN chmod a+x /support/busybox \
               /support/libdisableselinux.so \

@@ -2,7 +2,7 @@ name: Build Kali
 
 on:
   schedule:
-    - cron: '0 8 * * 1'   # every Monday 08:00 UTC (staggered)
+    - cron: '0 13 * * 1'  # every Monday 13:00 UTC
   workflow_dispatch:
   push:
     branches: [master]
@@ -15,7 +15,7 @@ jobs:
   build:
     uses: ./.github/workflows/build-image.yml
     with:
-      image_name: userland-kali
+      image_name: serverbox-kali
       upstream_image: kalilinux/kali-rolling:latest
       dockerfile: Dockerfile.kali
       platforms: linux/amd64,linux/arm64

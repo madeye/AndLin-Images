@@ -2,7 +2,7 @@ name: Build Arch
 
 on:
   schedule:
-    - cron: '0 9 * * 1'   # every Monday 09:00 UTC (staggered)
+    - cron: '0 14 * * 1'  # every Monday 14:00 UTC
   workflow_dispatch:
   push:
     branches: [master]
@@ -10,13 +10,12 @@ on:
       - Dockerfile.arch
       - 'input/**'
       - 'assets/common/**'
-      - 'assets/arch/**'
 
 jobs:
   build:
     uses: ./.github/workflows/build-image.yml
     with:
-      image_name: userland-arch
+      image_name: serverbox-arch
       # Track the ARM image; archlinux:latest (amd64) is also a base but single-arch
       upstream_image: menci/archlinuxarm:latest
       dockerfile: Dockerfile.arch

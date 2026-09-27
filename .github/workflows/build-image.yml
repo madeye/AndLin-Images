@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       image_name:
-        description: Name of the image on the registry (e.g. userland-debian)
+        description: Name of the image on the registry (e.g. serverbox-debian)
         required: true
         type: string
       upstream_image:
