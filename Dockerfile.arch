@@ -1,3 +1,7 @@
+# ServerBox's Arch image: a headless Linux server for proot or the AVF VM
+# backend on Android. It carries what ServerBox needs to run the distro,
+# dropbear for SSH, and a small server-oriented package baseline. See README.md.
+
 # Stage 1: build arch-specific artifacts that must not ship with their build deps
 # menci/archlinuxarm provides amd64 + arm64 + arm/v7 in a single multi-arch image.
 FROM menci/archlinuxarm:latest AS builder
@@ -21,8 +25,10 @@ RUN mkdir /build \
     && gcc -shared -fPIC /tmp/disableselinux.c -o /build/libdisableselinux.so \
     && cp /usr/bin/busybox /build/busybox
 
-# Stage 2: the real rootfs — no build toolchain
+# Stage 2: the real rootfs — no build toolchain, no X/VNC/desktop stack
 FROM menci/archlinuxarm:latest
+
+LABEL org.serverbox.variant=server
 
 RUN sed -i 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf && \
     sed -i '/^SigLevel[[:space:]]/c\SigLevel = Never' /etc/pacman.conf && \
@@ -38,23 +44,30 @@ RUN pacman -Syu --noconfirm --overwrite '*'
 # chroot in which the distro's own init never runs. Requested explicitly even
 # though the base image ships systemd as part of its base group: that is
 # incidental, and an upstream change could silently regress it.
+#
+# No X11/VNC/desktop packages here (x11vnc, xterm, xorg-twm, xorg-server-xvfb,
+# xorg-xsetroot, expect) -- this is a headless server image. In their place: a
+# small, generally-useful server baseline.
 RUN pacman -S --noconfirm --needed --overwrite '*' \
       systemd \
-      sudo dropbear x11vnc xterm xorg-twm xorg-server-xvfb xorg-xsetroot expect gzip
+      sudo dropbear gzip \
+      ca-certificates wget curl \
+      openssh less nano procps-ng iproute2 iputils \
+      tzdata cronie
+
+RUN sed -i '/^#en_US.UTF-8 UTF-8/s/^#//' /etc/locale.gen \
+    && locale-gen
 
 RUN yes | pacman -Scc
 
-RUN printf '#!/bin/sh\nunset LD_PRELOAD\nunset LD_LIBRARY_PATH\nexport LIBGL_ALWAYS_SOFTWARE=1\n' \
-    > /etc/profile.d/userland.sh && chmod +x /etc/profile.d/userland.sh
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
 
-RUN mkdir -p /usr/share/xsessions && \
-    printf '[Desktop Entry]\nEncoding=UTF-8\nName=Twm\nComment=This session logs you into Twm\nExec=twm\nType=Application\n' \
-    > /usr/share/xsessions/twm.desktop
+RUN printf '#!/bin/sh\nunset LD_PRELOAD\nunset LD_LIBRARY_PATH\nexport LIBGL_ALWAYS_SOFTWARE=1\n' \
+    > /etc/profile.d/serverbox.sh && chmod +x /etc/profile.d/serverbox.sh
 
 COPY --from=builder /build/busybox              /support/busybox
 COPY --from=builder /build/libdisableselinux.so /support/libdisableselinux.so
 COPY assets/common/ /support/
-COPY assets/arch/   /support/
 
 RUN chmod a+x /support/busybox \
               /support/libdisableselinux.so \

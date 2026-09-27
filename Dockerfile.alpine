@@ -1,3 +1,19 @@
+# ServerBox's Alpine image: a headless Linux server for proot on Android (Alpine
+# has no systemd, so it isn't used with the AVF VM backend). It carries what
+# ServerBox needs to run the distro, dropbear for SSH, and a small
+# server-oriented package baseline. See README.md.
+#
+# Notes:
+#  - No systemd/systemd-sysv: Alpine doesn't ship it.
+#  - assets/alpine/addNonRootUser.sh is layered over the common one: it
+#    registers the shell in /etc/shells before chsh, which Alpine needs.
+#  - musl libc doesn't support glibc-style locale generation, so unlike the
+#    apt-based images this one doesn't install a locales package or run
+#    locale-gen -- it just sets LANG=C.UTF-8, which musl treats as UTF-8 by
+#    default ("where the distro supports it").
+#  - No separate cron package: busybox-suid (already required) provides
+#    crond as a built-in applet.
+
 # Stage 1: build the arch-specific artifacts that must not ship with their build deps
 FROM alpine:latest AS builder
 
@@ -8,28 +24,33 @@ RUN mkdir /build \
     && gcc -shared -fPIC /tmp/disableselinux.c -o /build/libdisableselinux.so \
     && cp /bin/busybox.static /build/busybox
 
-# Stage 2: the real rootfs — no build toolchain
+# Stage 2: the real rootfs — no build toolchain, no X/VNC/desktop stack
 FROM alpine:latest
+
+LABEL org.serverbox.variant=server
 
 RUN printf 'https://dl-cdn.alpinelinux.org/alpine/latest-stable/main\nhttps://dl-cdn.alpinelinux.org/alpine/latest-stable/community\n' \
     > /etc/apk/repositories && \
     apk update && \
     apk add --no-cache \
-      busybox-suid bash sudo dropbear mesa-gl xvfb x11vnc xsetroot xterm \
-      twm expect shadow wget curl pulseaudio && \
+      busybox-suid bash sudo dropbear shadow \
+      ca-certificates wget curl \
+      openssh-client less nano procps iproute2 iputils tzdata && \
     rm -rf /var/cache/apk/*
 
 RUN chmod +r /bin/bbsuid
 
 RUN printf 'auth sufficient pam_shells.so\n' > /etc/pam.d/chsh
 
+ENV LANG=C.UTF-8
+
 RUN printf '#!/bin/sh\nunset LD_PRELOAD\nunset LD_LIBRARY_PATH\nexport LIBGL_ALWAYS_SOFTWARE=1\n' \
-    > /etc/profile.d/userland.sh && chmod +x /etc/profile.d/userland.sh
+    > /etc/profile.d/serverbox.sh && chmod +x /etc/profile.d/serverbox.sh
 
 COPY --from=builder /build/busybox              /support/busybox
 COPY --from=builder /build/libdisableselinux.so /support/libdisableselinux.so
 COPY assets/common/ /support/
-COPY assets/alpine/ /support/
+COPY assets/alpine/addNonRootUser.sh /support/addNonRootUser.sh
 
 RUN chmod a+x /support/busybox \
               /support/libdisableselinux.so \

@@ -2,7 +2,7 @@ name: Build Ubuntu
 
 on:
   schedule:
-    - cron: '0 7 * * 1'   # every Monday 07:00 UTC (staggered from Debian)
+    - cron: '0 11 * * 1'  # every Monday 11:00 UTC
   workflow_dispatch:
   push:
     branches: [master]
@@ -15,7 +15,7 @@ jobs:
   build:
     uses: ./.github/workflows/build-image.yml
     with:
-      image_name: userland-ubuntu
+      image_name: serverbox-ubuntu
       upstream_image: ubuntu:latest
       dockerfile: Dockerfile.ubuntu
       platforms: linux/amd64,linux/arm64,linux/arm/v7
