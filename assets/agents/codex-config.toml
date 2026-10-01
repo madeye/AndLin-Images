@@ -1,0 +1,5 @@
+# Set by ServerBox. Codex's sandbox (bubblewrap/Landlock) can't start under PRoot on Android, so it
+# is off here; Codex still asks before running commands. If this filesystem runs in the AVF VM,
+# where the sandbox can work, you can remove the sandbox_mode line.
+sandbox_mode = "danger-full-access"
+approval_policy = "on-request"
