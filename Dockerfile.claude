@@ -1,0 +1,38 @@
+# ServerBox's Claude Code image: the Debian server image with Anthropic's Claude Code CLI
+# preinstalled, so a phone can host a coding agent you reach over SSH. See README.md.
+#
+# Built on serverbox-debian rather than duplicating it, so it gets the same support files, SSH
+# server, systemd (for the AVF VM backend) and package baseline. Claude Code ships native
+# binaries for amd64 and arm64 only, so this image covers those two platforms.
+
+ARG BASE_IMAGE=ghcr.io/madeye/serverbox-debian:latest
+ARG NODE_IMAGE=node:24-slim
+
+# Node.js comes from the official image: Debian's nodejs is older than Claude Code's installer
+# needs (>= 22).
+FROM ${NODE_IMAGE} AS node
+
+FROM ${BASE_IMAGE}
+
+LABEL org.serverbox.variant=agent-claude
+
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && node --version && npm --version
+
+# What an agent works with: git and ripgrep above all, python3 for the scripts it writes.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      git \
+      ripgrep \
+      python3 \
+      jq \
+      unzip \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g @anthropic-ai/claude-code \
+    && npm cache clean --force \
+    && claude --version
+
+COPY assets/agents/claude-profile.sh /etc/profile.d/serverbox-claude.sh

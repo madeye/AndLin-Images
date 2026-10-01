@@ -1,0 +1,30 @@
+name: Build Claude Code
+
+on:
+  # Daily: the agent ships often. The run is skipped unless serverbox-debian or the npm package
+  # changed since the last build.
+  schedule:
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - Dockerfile.claude
+      - 'assets/agents/**'
+  # Rebuild on top of a freshly built Debian image.
+  workflow_run:
+    workflows: [Build Debian]
+    types: [completed]
+    branches: [master]
+
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    uses: ./.github/workflows/build-image.yml
+    with:
+      image_name: serverbox-claude
+      upstream_image: ghcr.io/madeye/serverbox-debian:latest
+      version_packages: "@anthropic-ai/claude-code"
+      dockerfile: Dockerfile.claude
+      platforms: linux/amd64,linux/arm64
+    secrets: inherit
