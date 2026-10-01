@@ -46,7 +46,9 @@ for amd64 and arm64 only, so these images have no arm/v7 or 386 builds.
   own auto-updater can't write to `/usr/local`, so the image sets `DISABLE_AUTOUPDATER=1`.
 - Codex's command sandbox (bubblewrap/Landlock) can't start under PRoot on Android, so
   `/etc/skel/.codex/config.toml` gives new users `sandbox_mode = "danger-full-access"` with
-  `approval_policy = "on-request"`: Codex still asks before running commands.
+  `approval_policy = "on-request"`: Codex still asks before running commands. Its shared
+  background app-server doesn't come up under PRoot either, so the same file sets
+  `[features] daemon_auto_start = false` (like always passing `--no-daemon`).
 - Neither image contains credentials. Sign in on the phone with `claude` (which prints a URL to
   open elsewhere) or `codex login --device-auth`, or set `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`.
 

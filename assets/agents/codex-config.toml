@@ -1,5 +1,13 @@
-# Set by ServerBox. Codex's sandbox (bubblewrap/Landlock) can't start under PRoot on Android, so it
-# is off here; Codex still asks before running commands. If this filesystem runs in the AVF VM,
-# where the sandbox can work, you can remove the sandbox_mode line.
+# Set by ServerBox for running Codex under PRoot on Android.
+
+# Codex's command sandbox (bubblewrap/Landlock) can't start here, so it is off; Codex still asks
+# before running commands. If this filesystem runs in the AVF VM, where the sandbox can work, you
+# can remove the sandbox_mode line.
 sandbox_mode = "danger-full-access"
 approval_policy = "on-request"
+
+[features]
+# Codex normally hands sessions to a shared background app-server over a Unix socket. That server
+# never comes up under PRoot ("app server did not become ready"), so run in-process instead, as
+# `codex --no-daemon` would. This also skips copying the server binary into ~/.codex/packages.
+daemon_auto_start = false
